@@ -1,0 +1,537 @@
+unit UPrincipal;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  LCLProc, Grids, LCLType, ExtCtrls, ComCtrls, LCLIntf, Buttons, Process,
+  uayuda;
+
+type
+  { EMyException }
+  EMyException = class(Exception);
+
+  { TForm1 }
+
+  TForm1 = class(TForm)
+    btn_go: TButton;
+    btn_mas: TButton;
+    btn_menos: TButton;
+    Label1: TLabel;
+    lb_padres: TListBox;
+    sb_ayuda: TStatusBar;
+    sdd_archivos: TSelectDirectoryDialog;
+    StringGrid1: TStringGrid;
+    procedure btn_goClick(Sender: TObject);
+    procedure btn_goKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure btn_goMouseEnter(Sender: TObject);
+    procedure btn_masClick(Sender: TObject);
+    procedure btn_masKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState
+      );
+    procedure btn_masMouseEnter(Sender: TObject);
+    procedure btn_menosClick(Sender: TObject);
+    procedure btn_menosKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure btn_menosMouseEnter(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure sb_ayudaMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure tecla_accion(Key: Word);
+    procedure FormMouseEnter(Sender: TObject);
+    procedure lb_padresKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure lb_padresMouseEnter(Sender: TObject);
+    procedure StringGrid1DblClick(Sender: TObject);
+    procedure StringGrid1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure StringGrid1MouseEnter(Sender: TObject);
+    procedure StringGrid1PrepareCanvas(sender: TObject; aCol, aRow: Integer;
+      aState: TGridDrawState);
+    procedure tabla_configurar(grid: TStringGrid);
+    procedure tabla_limpiar(grid: TStringGrid);
+    procedure tabla_llenar(grid: TStringGrid; dir_padre: String);
+    procedure cargar_archivos(grid: TStringGrid; dir_padre: String);
+    procedure mostrar_ayuda(caso_ayuda: String);
+  private
+    {}
+  public
+    {}
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.lfm}
+
+{ TForm1 }
+
+function obtener_texto( dir_archivo : String ) : String;
+var
+  strm: TFileStream;
+  n: longint;
+  txt: string;
+begin
+  txt := '';
+  strm := TFileStream.Create( dir_archivo, fmOpenRead or fmShareDenyWrite );
+  try
+    n := strm.Size;
+    SetLength( txt, n );
+    strm.Read( txt[1], n );
+  finally
+    FreeAndNil( strm );
+  end;
+  obtener_texto := txt;
+end;
+
+{ Si archivo tiene caracteres especiales(distintos de ingles o rango en ascii: [128, 255]) retorna 'N'
+  si no retorna 'S' }
+function obtener_ingles( dir_archivo : String ) : Char;
+var
+  texto : String;
+  flg : Bool;
+  ret : Char;
+  i : Integer;
+begin
+  ret := 'S';
+
+  texto := obtener_texto(dir_archivo);
+
+  for i := 128 to 255 do
+  begin
+    if texto.IndexOf(Chr(i)) <> -1 then
+    begin
+      ret := 'N';
+      break;
+    end;
+  end;
+
+  obtener_ingles := ret;
+end;
+
+{ Si archivo tiene formato Windows retorna 'W'
+  Si archivo tiene formato Linux retorna 'L'
+}
+function obtener_formato( dir_archivo : String ) : Char;
+var
+  tfArchivoTexto: File of char;
+  strArchivoTexto: string;
+  c_actual, c_anterior: Char;
+  ret : Char;
+begin
+  ret := 'L'; { default: Linux }
+
+  AssignFile(tfArchivoTexto, dir_archivo);
+  strArchivoTexto := '';
+  c_actual := 'A';
+  c_anterior := 'B';
+  try
+    // Open the file for reading
+    reset(tfArchivoTexto);
+
+    while not eof(tfArchivoTexto) do
+    begin
+      c_anterior := c_actual;
+      read(tfArchivoTexto, c_actual);
+
+      { WINDOWS termina con 13/CR y 10/LF }
+      { LINUX termina con 10/LF }
+
+      if SameText(c_anterior, #13) AND SameText(c_actual, #10) then
+      begin
+        ret := 'W';
+        break;
+      end
+      else if (NOT SameText(c_anterior, #13)) AND SameText(c_actual, #10) then
+      begin
+        break;
+      end;
+    end;
+
+    Close (tfArchivoTexto);
+  except
+    on E: EInOutError do
+     ShowMessage('Error de manejo de archivos. Detalles: '+ E.Message);
+  end;
+
+  obtener_formato := ret;
+end;
+
+function analizarArchivo(dir_archivo : String) : String;
+var
+  flg : String;
+begin
+  flg := 'WS'; { Default }
+
+  flg[1] := obtener_formato( dir_archivo );
+  flg[2] := obtener_ingles( dir_archivo );
+
+  analizarArchivo := flg;
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  i : integer;
+begin
+  lb_padres.Items.Clear;
+
+  if ParamCount > 0 then
+  begin
+    { i := 1 porque 0 es el nombre de ejecutable. }
+    for i := 1 to ParamCount do
+    begin
+      lb_padres.Items.Add(ParamStr(i));
+    end;
+  end;
+
+  btn_goClick(Sender);
+end;
+
+procedure TForm1.tabla_configurar(grid: TStringGrid);
+begin
+  grid.InsertColRow(True,0);
+  grid.InsertColRow(True,1);
+  grid.InsertColRow(True,2);
+  grid.InsertColRow(True,3);
+
+  grid.ColWidths[0] := 65;
+  grid.ColWidths[1] := 90;
+  grid.ColWidths[2] := 826;
+  grid.ColWidths[3] := 60;
+
+  { borrar columna extra... }
+  grid.DeleteCol(grid.ColCount-1);
+
+  { etiquetar encabezado }
+  grid.InsertRowWithValues(0,['Formato','SIN ESPECIALES','Direccion','Tamano']);
+  grid.DeleteRow(1);
+end;
+
+procedure TForm1.tabla_limpiar(grid: TStringGrid);
+begin
+  { eliminar todas las filas }
+  while(grid.RowCount > 1) do
+  begin
+       grid.DeleteRow(1);
+  end;
+
+  { eliminar todas las columnas }
+  while(grid.ColCount > 1) do
+  begin
+       grid.DeleteCol(1);
+  end;
+end;
+
+procedure TForm1.cargar_archivos(grid: TStringGrid; dir_padre: String);
+var
+  lista_archivos : TStringList;
+  tamano_archivo : LongInt;
+  item: String;
+  strRes : String;
+begin
+  { si directorio }
+  if DirectoryExists(dir_padre) then
+  begin
+    lista_archivos := FindAllFiles( dir_padre, '*.txt;*.ksh;*.sql', True );
+    try
+      for item in lista_archivos do
+      begin
+        cargar_archivos(grid,item);
+      end;
+    finally
+      lista_archivos.Free;
+    end;
+  end
+  { si archivo }
+  else if FileExists(dir_padre) then
+  begin
+    tamano_archivo := FileSize(dir_padre);
+
+    strRes := analizarArchivo( dir_padre );
+    if (strRes[1] = 'W') AND (strRes[2] = 'N') then
+    begin
+      grid.InsertRowWithValues(grid.RowCount,['WINDOWS','NOK',dir_padre,IntToStr(tamano_archivo)]);
+    end
+    else if (strRes[1] = 'W') AND (strRes[2] = 'S') then
+    begin
+      grid.InsertRowWithValues(grid.RowCount,['WINDOWS','OK',dir_padre,IntToStr(tamano_archivo)]);
+    end
+    else if (strRes[1] = 'L') AND (strRes[2] = 'N') then
+    begin
+      grid.InsertRowWithValues(grid.RowCount,['LINUX','NOK',dir_padre,IntToStr(tamano_archivo)]);
+    end
+    else if (strRes[1] = 'L') AND (strRes[2] = 'S') then
+    begin
+      grid.InsertRowWithValues(grid.RowCount,['LINUX','OK',dir_padre,IntToStr(tamano_archivo)]);
+    end;
+  end
+  { si desconocido }
+  else
+  begin
+    ShowMessage('Archivo no soportado: '+dir_padre);
+  end;
+end;
+
+procedure TForm1.tabla_llenar(grid: TStringGrid; dir_padre: String);
+begin
+  { insertar contenido de tabla }
+  cargar_archivos(grid, dir_padre);
+
+  { WriteLn( 'Esta bien.' ); }
+end;
+
+procedure TForm1.FormDropFiles(Sender: TObject; const FileNames: array of String);
+var FileName : String;
+begin
+
+  lb_padres.Items.Clear;
+
+  for FileName in FileNames do
+  begin
+    lb_padres.Items.Insert(lb_padres.Items.Count,FileName);
+  end;
+  btn_goClick(Sender);
+end;
+
+procedure TForm1.tecla_accion(Key: Word);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    Form1.Close;
+  end;
+
+  if Key = VK_F1 then
+  begin
+    Form2.Show;
+  end;
+end;
+
+procedure TForm1.FormMouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('forma');
+end;
+
+procedure TForm1.lb_padresKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.lb_padresMouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('direcciones');
+end;
+
+procedure TForm1.StringGrid1DblClick(Sender: TObject);
+var
+  aProc: TProcess;
+  direccion_archivo: String;
+begin
+  direccion_archivo := StringGrid1.Rows[StringGrid1.Row].Strings[2];
+
+  if Length(direccion_archivo) > 0 then
+  begin
+    aProc := TProcess.Create(nil);
+    aProc.Executable := 'explorer.exe';
+    aProc.Parameters.Add('/select,"'+direccion_archivo+'"');
+    aProc.Execute;
+    aProc.Free
+  end;
+end;
+
+procedure TForm1.StringGrid1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.StringGrid1MouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('tabla');
+end;
+
+procedure TForm1.StringGrid1PrepareCanvas(sender: TObject; aCol, aRow: Integer;
+  aState: TGridDrawState);
+var
+  MyTextStyle: TTextStyle;
+begin
+  if (aCol = 2) or (aCol = 1) then
+  begin
+    { columna #2 y #1 : alinear a derecha
+    MyTextStyle := StringGrid1.Canvas.TextStyle;
+    MyTextStyle.Alignment := taRightJustify;
+    StringGrid1.Canvas.TextStyle := MyTextStyle; }
+  end;
+  if SameText(StringGrid1.Cells[aCol,aRow], 'OK') then
+  begin
+    StringGrid1.Canvas.Brush.Color := TColor($99ff66);
+  end
+  else if SameText(StringGrid1.Cells[aCol,aRow], 'NOK') then
+  begin
+    StringGrid1.Canvas.Brush.Color := TColor($99ccff);
+  end;
+
+  if SameText(StringGrid1.Cells[aCol,aRow], 'LINUX') then
+  begin
+    StringGrid1.Canvas.Brush.Color := TColor($99ff66);
+  end
+  else if SameText(StringGrid1.Cells[aCol,aRow], 'WINDOWS') then
+  begin
+    StringGrid1.Canvas.Brush.Color := TColor($99ccff);
+  end;
+end;
+
+procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.sb_ayudaMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+end;
+
+procedure TForm1.btn_goClick(Sender: TObject);
+var
+  str_padre : String;
+begin
+
+  tabla_limpiar(StringGrid1);
+  tabla_configurar(StringGrid1);
+
+  for str_padre in lb_padres.Items do
+  begin
+    tabla_llenar(StringGrid1, str_padre);
+
+    { Mostrar mensaje al finalizar }
+    mostrar_ayuda('analisis_completo');
+  end;
+
+  { ordenar por columna(s) descendentemente }
+  StringGrid1.SortOrder:= soDescending;
+  StringGrid1.SortColRow(True,0);
+end;
+
+procedure TForm1.btn_goKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.btn_goMouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('actualizar');
+end;
+
+procedure TForm1.btn_masClick(Sender: TObject);
+var
+  nombre_archivo : String;
+  i : Integer;
+begin
+  { agregar archivo en caja de lista }
+  if sdd_archivos.Execute then
+  begin
+    if sdd_archivos.Files.Count > 0 then
+    begin
+      for i := 0 to (sdd_archivos.Files.Count - 1) do
+      begin
+        { si existe, no ingresar }
+        if lb_padres.Items.IndexOf(sdd_archivos.Files.Strings[i]) = -1 then
+        begin
+          lb_padres.Items.Add(sdd_archivos.Files.Strings[i]);
+        end;
+      end;
+    end;
+  end;
+
+  { post validacion }
+  if Length(lb_padres.GetSelectedText()) = 0 then
+  begin
+    btn_goClick(Sender);
+  end;
+
+end;
+
+procedure TForm1.btn_masKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.btn_masMouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('mas');
+end;
+
+procedure TForm1.btn_menosClick(Sender: TObject);
+begin
+  if Length(lb_padres.GetSelectedText) = 0 then
+  begin
+    ShowMessage('Para quitar, selecciona una carpeta/archivo a analizar.');
+  end
+  else
+  begin
+    { remover de lista el item seleccionado }
+    lb_padres.Items.Delete(lb_padres.Items.IndexOf(lb_padres.GetSelectedText));
+
+    btn_goClick(Sender);
+  end;
+end;
+
+procedure TForm1.btn_menosKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  tecla_accion(Key);
+end;
+
+procedure TForm1.btn_menosMouseEnter(Sender: TObject);
+begin
+  mostrar_ayuda('menos');
+end;
+
+procedure TForm1.mostrar_ayuda(caso_ayuda: String);
+begin
+  sb_ayuda.Panels.Items[0].Text := 'Esc para salir, F1 para ayuda.';
+  sb_ayuda.Panels.Items[0].Width:= 200;
+  sb_ayuda.Panels.Items[1].Width:= 400;
+  sb_ayuda.Panels.Items[2].Width:= 100;
+
+  if SameText(caso_ayuda,'tabla') then
+  begin
+    sb_ayuda.Panels.Items[1].Text := 'Doble click sobre item para abrir carpeta contenedora.';
+  end;
+
+  if SameText(caso_ayuda,'actualizar') then
+  begin
+    sb_ayuda.Panels.Items[1].Text := 'Boton "Actualiza" el resultado de analisis.';
+  end;
+
+  if SameText(caso_ayuda,'analisis_completo') then
+  begin
+    sb_ayuda.Panels.Items[2].Text:= IntToStr(StringGrid1.RowCount-1)+' archivos(*.txt,*.sql,*.ksh) analizados, a las '+DateTimeToStr(Now);
+  end;
+
+  if SameText(caso_ayuda,'forma') or SameText(caso_ayuda,'direcciones') then
+  begin
+    sb_ayuda.Panels.Items[1].Text:= 'Arrastra carpetas/archivos a la ventana para analizar.';
+  end;
+
+  if SameText(caso_ayuda,'mas') then
+  begin
+    sb_ayuda.Panels.Items[1].Text:= 'Boton "+" Agrega carpetas/archivos a analizar.';
+  end;
+
+  if SameText(caso_ayuda,'menos') then
+  begin
+    sb_ayuda.Panels.Items[1].Text:= 'Boton "-" Quita carpetas/archivos a analizar.';
+  end;
+
+end;
+
+end.
+

@@ -1,0 +1,64 @@
+object Form2: TForm2
+  Left = 256
+  Height = 240
+  Top = 122
+  Width = 320
+  BorderStyle = bsNone
+  Caption = 'F1 Ayuda'
+  ClientHeight = 240
+  ClientWidth = 320
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  Position = poMainFormCenter
+  LCLVersion = '1.6.4.0'
+  object Label1: TLabel
+    Left = 99
+    Height = 15
+    Top = 215
+    Width = 122
+    Caption = 'Presionar Esc para salir.'
+    ParentColor = False
+  end
+  object Memo1: TMemo
+    Left = 8
+    Height = 200
+    Top = 8
+    Width = 304
+    BorderStyle = bsNone
+    Lines.Strings = (
+      '*Botones*'
+      '- "+", agrega carpeta a analizar.'
+      '- "-", elimina carpeta/archivo seleccionado en '
+      'carpetas/archivos a analizar.'
+      '- "Actualiza", actualiza el resultado de analisis de las '
+      'carpetas/archivos a analizar.'
+      ''
+      '*Tabla de resultados*'
+      '- Doble click sobre item para abrir carpeta '
+      'contenedora.'
+      '- Doble click sobre borde derecho de titulo de '
+      'columna para auto-ajustar.'
+      '- Click sobre titulo de columna para ordenar.'
+      '- ASCII Extendido corresponde a caracteres con '
+      'codigo en rango [128,255].'
+      '- Se asume: Todos los archivos son Linux si no son '
+      'Windows.'
+      ''
+      '*Ventana*'
+      '- Permite arrastrar carpetas/archivos para analizarlos.'
+      ''
+      '*Aplicacion*'
+      '- Se permite abrir aplicación, arrastrando '
+      'directamente los archivos/carpetas a analizar al '
+      'ejecutable.'
+      ''
+      '*Version*'
+      '30/05/2017'
+    )
+    OnKeyDown = Memo1KeyDown
+    ParentColor = True
+    ReadOnly = True
+    ScrollBars = ssAutoVertical
+    TabOrder = 0
+  end
+end

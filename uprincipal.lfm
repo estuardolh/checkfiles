@@ -1,0 +1,119 @@
+object Form1: TForm1
+  Left = 251
+  Height = 565
+  Hint = '- Doble click sobre item para abrir carpeta contenedora.'#13#10'- Doble click sobre borde de titulo de columa para auto-ajustar ancho.'#13#10'- Click sobre titulo de columna para ordenar items.'
+  Top = 118
+  Width = 1078
+  AllowDropFiles = True
+  BorderStyle = bsSingle
+  Caption = 'Principal'
+  ClientHeight = 565
+  ClientWidth = 1078
+  OnCreate = FormCreate
+  OnDropFiles = FormDropFiles
+  OnKeyDown = FormKeyDown
+  OnMouseEnter = FormMouseEnter
+  Position = poDesktopCenter
+  LCLVersion = '1.6.4.0'
+  object Label1: TLabel
+    Left = 8
+    Height = 15
+    Top = 0
+    Width = 141
+    Caption = 'Analizar carpetas/archivos:'
+    ParentColor = False
+  end
+  object btn_go: TButton
+    Left = 1016
+    Height = 49
+    Top = 15
+    Width = 56
+    Caption = 'Actualiza'
+    OnClick = btn_goClick
+    OnKeyDown = btn_goKeyDown
+    OnMouseEnter = btn_goMouseEnter
+    TabOrder = 0
+  end
+  object lb_padres: TListBox
+    Left = 8
+    Height = 48
+    Top = 16
+    Width = 968
+    ExtendedSelect = False
+    ItemHeight = 0
+    OnKeyDown = lb_padresKeyDown
+    OnMouseEnter = lb_padresMouseEnter
+    TabOrder = 1
+  end
+  object sb_ayuda: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 542
+    Width = 1078
+    Panels = <    
+      item
+        Width = 50
+      end    
+      item
+        Width = 50
+      end    
+      item
+        Width = 50
+      end>
+    SimplePanel = False
+    OnMouseDown = sb_ayudaMouseDown
+  end
+  object StringGrid1: TStringGrid
+    Left = 8
+    Height = 464
+    Top = 72
+    Width = 1064
+    HelpType = htKeyword
+    Anchors = [akLeft, akRight]
+    ColumnClickSorts = True
+    FixedCols = 0
+    HeaderHotZones = []
+    HeaderPushZones = []
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goDrawFocusSelected, goColSizing, goColMoving, goColSpanning, goDblClickAutoSize, goSmoothScroll, goHeaderHotTracking, goCellHints, goRowHighlight]
+    ParentShowHint = False
+    TabOrder = 3
+    OnDblClick = StringGrid1DblClick
+    OnKeyDown = StringGrid1KeyDown
+    OnMouseEnter = StringGrid1MouseEnter
+    OnPrepareCanvas = StringGrid1PrepareCanvas
+    ColWidths = (
+      60
+      60
+      60
+      60
+      60
+    )
+  end
+  object btn_mas: TButton
+    Left = 984
+    Height = 25
+    Top = 14
+    Width = 25
+    Caption = '+'
+    OnClick = btn_masClick
+    OnKeyDown = btn_masKeyDown
+    OnMouseEnter = btn_masMouseEnter
+    ParentShowHint = False
+    TabOrder = 4
+  end
+  object btn_menos: TButton
+    Left = 984
+    Height = 25
+    Top = 39
+    Width = 25
+    Caption = '-'
+    OnClick = btn_menosClick
+    OnKeyDown = btn_menosKeyDown
+    OnMouseEnter = btn_menosMouseEnter
+    TabOrder = 5
+  end
+  object sdd_archivos: TSelectDirectoryDialog
+    left = 8
+    top = 16
+  end
+end
